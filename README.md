@@ -1,7 +1,7 @@
 
-##### DEMONSTRATION VERSION #####
-For demonstration of the pre-selection tool, run run_test_program.py
-##### DEMONSTRATION VERSION #####
+----- DEMONSTRATION VERSION ------  
+For demonstration of the pre-selection tool, run run_test_program.py  
+----- DEMONSTRATION VERSION ------
 
 This is an updated version of the software in https://gitlab.cern.ch/CLICdp/HGCAL/hexascan by Thorben Quast.
 
