@@ -1,0 +1,1 @@
+{"threshold": 0.5, "batch_size": 1, "lr": 0.0001, "optimizer": "Adam", "lossFunc": "fl", "normal_to_anom": 100, "epochs": 200, "fl_gamma": 2, "bright_aug": 1, "current_epoch": 0}
