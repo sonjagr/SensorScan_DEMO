@@ -1,3 +1,8 @@
+
+##### DEMONSTRATION VERSION #####
+For demonstration of the pre-selection tool, run run_test_program.py
+##### DEMONSTRATION VERSION #####
+
 This is an updated version of the software in https://gitlab.cern.ch/CLICdp/HGCAL/hexascan by Thorben Quast.
 
 Person responsible: Sonja Grönroos sonja.gronroos@cern.ch
@@ -147,7 +152,3 @@ and optional argument
 
 if you do not specify the DUTName, in validation mode you will be suggested the DUTs that have not yet been validated.
 In show mode all DUTs of the campaign will be printed.
-
-   
-
-   
