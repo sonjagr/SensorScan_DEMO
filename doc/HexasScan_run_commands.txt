@@ -1,0 +1,89 @@
+*******************************************************
+INSTRUCTIONS ON HOW TO RUN HEXASCAN WITH PRE_SELECTION:
+*******************************************************
+
+1. Open anaconda prompt
+
+2. Activate necessary environment with command
+conda activate HEXASCAN_AI 
+
+3. Navigate to folder in prompt C:\Users\HexaScan_AI_user\Desktop\HexaScan_withAI
+
+4. Prepare to scan a sensor. See instructions in document "Procedure_updated" if full procedure is unclear.
+
+5. Parallel scan and pre-selection is run with command and one mandatory argument CampaignName:
+python run_photo_taking_with_PS.py --CampaignName [insert here]
+
+there are, in addition, six more arguments, which are optional:
+--DUTName [give name of DUT]
+--SensorGeometry [HPK_198ch_8inch, HPK_432ch_8inch, custom_map_LD_396, custom_map_HD_396, custom_map_LD_385 (default), custom_map_HD_385]
+--PS [1: use pre-selection (default), 0: no pre-selection]
+--COMPORT [COM port of the xy-stage, default = 3]
+--Threshold [Classification threshold, default = 0.1]
+--Grid [1: use only default grid (default), 2: use also secondary grid]
+
+6. Perform the sensor alignment, test image and scratch pad reading as instructed on terminal prompts. Initiate scan.
+
+7. Let the scan finish. If PS = 1, the images are analysed in parallel by the pre-selection algorithm as the scan progresses.
+All images are saved as jpegs, and the images found to be anomalous by the PS are saved as both png and npy files in the output directory you determined.
+A fraction of images deemed normal is also saved.
+On the scan map in Figure 1, you can follow how the scan progresses.
+The scan takes approx. 15 minutes to finish.
+
+8. After scan is finished, you are asked to validate the annotated images. You will also validate 10 % of the normal images.
+You can skip this step by writing "no" in the command prompt when prompted.
+Or you can exit validation at any point by typing END when prompted.
+
+9. The program prints the scan indices where anomalies were detected by the PS OR where you annotated anomalies in the normal images during validation.
+You are then prompted to go through the indices
+and the xy-stage moves to the corresponding position for inspection.
+
+10. With the table in the correct position, live footage of the inspected scan position can be viewed on screen.
+You can also inspect the area though the microscope.
+After you quit the inspection/cleaning, a rescan photo is taken and saved in the jpegs folder.
+
+11. End of program. Inspect guard ring.
+With some scan mappings you will have the possibility to go through the guard ring images on screen, and then move the xy-stage to a position corresponding to the image.
+Or you can perform the inspection manually with the joystick.
+
+
+***********************************************************************************
+IF YOU WANT TO INSPECT ALL IMAGES BY EYE/PERFORM SEPARATE SCAN AND PRE-SELECTION:
+***********************************************************************************
+
+The traditional scan program which does not include the pre-selection can also be run by itself.
+Afterwards you can run the PS on the acquired images, and finally a cleaning program for moving the xy-stage to specific scan indices. (Cleaning can be also done manually.)
+
+1. Open anaconda prompt
+
+2. Activate necessary environment with command
+conda activate HEXASCAN_AI 
+
+3. Navigate to folder in prompt C:\Users\HexaScan_AI_user\Desktop\HexaScan_withAI
+
+4. Prepare to scan a sensor. See instructions on paper.
+
+5. Run the scan program similar to above but with the --PS argument
+python run_photo_taking_with_PS.py --CampaignName [insert here] --PS 0
+
+note, how PS argument must now be set to 0 to disable pre-selection.
+
+6. Wait for scan to finish. All scan images and npy files are produced into the output directory determined by campaign and dut name.
+
+7.1. Go through all produced images by eye and look for defects.
+
+8.1 Check and clean spots on sensor surface where you saw anomalies.
+
+9.1 End of program: inspect guard ring.
+
+7.2. End scan program when all images have been acquired and run PS with command
+python run_PS.py --SensorGeometry [insert here same as before] --CampaignName [insert here] --DUTName [insert here] --N_images [how many scan images were taken/the max scan index in the DUT folder you wish to analyse] --Verbose 1
+
+You can also set the optional --Grid and --Threshold arguments.
+Analyse results.
+
+8.2 Run cleaning program:
+python run_cleaning.py --SensorGeometry [insert here same as before] --CampaignName [insert here] --DUTName [insert here] --DetailLevel [insert here what was used with scan! For default maps = 0]
+
+this program reads in the scan indices selected by the PS, and allows you to move the xy-stage to those positions (or any other positions) to further inspect/clean.
+Requires the correct execution of previous programs.

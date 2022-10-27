@@ -1,0 +1,37 @@
+This file describes the main components of the HexaScan software.
+
+FOLDER \backup
+contains backup files, for example the old scan program.
+
+FOLDER \classes
+contains the classes.
+ImageHandler: handles image capturing, processing and pre-selection
+LEICAController: controls the camera
+ModelHandler: for re-training models
+PrintLogger: in development still
+ScanMapping: Handles the scan map before and during scan
+SageController: controls the xy-stage
+
+FOLDER \CNNs
+contains the tf models necessary for the pre-selection.
+
+FOLDER \datasets
+contains the train, test and validation datasets needed for retraining.
+
+FOLDER \doc
+contains this file and more documentation.
+
+FOLDER \maps
+contains the scan maps.
+
+FOLDER \outputs
+contains the different measurement campaigns and DUTs, images and npy files of scan images with possible annotations.
+
+FOLDER \utility
+contains several helper functions
+
+FOLDER \db
+contains the annotation and validation datasets
+
+Root directory:
+contains scripts that can be used to perform the scan, cleaning program, retraining program, validation tool program and a scan map generator.
