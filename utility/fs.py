@@ -1,5 +1,4 @@
-# Created by Thorben Quast, August 2021
-# Modified by Sonja Grönroos, August 2022
+# Created by Sonja Grönroos, August 2022
 #
 # Copyright (c) 2021 CERN
 #
