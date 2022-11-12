@@ -21,10 +21,13 @@
 # SOFTWARE.
 
 import os, sys, subprocess
-import time
+import msvcrt, time
 import glob
 import numpy as np
+import cv2
+import argparse
 
+from tqdm import tqdm
 from utility.fs import create_dir, read_AI_indices
 from matplotlib import pyplot as plt
 from classes.ScanMapping import ScanMapping
@@ -32,78 +35,110 @@ from classes.ImageHandler_v2 import ImageValidateEvent, ImageSaveEvent
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-GEOMETRY = 'HPK_198ch_8inch'
+parser = argparse.ArgumentParser()
+parser.add_argument("--SensorGeometry", type=str, help="Mapping geometry, see options in folder /maps. Usually custom_map_xxx, default = custom_map_LD_Full_385.",
+                    required=False, default ="custom_map_LD_Full_385")
+parser.add_argument("--PS", type=int, help="(option) Use pre-selection (1) or not (0). Default = 1.", default=1, required=False)
+parser.add_argument("--COMPORT", type=int, help="(option) COM port of the xy stage. Default = 3.", default=3, required=False)
+parser.add_argument("--Threshold", type=float, help="(option) Classification threshold (0.-1.).",
+                    default=0.2, required=False)
+parser.add_argument("--Grid", type=int, help="(option) How many grids are applied to an image during inference (1-only default, 2-default+secondary).", required=False, default = 1)
+args = parser.parse_args()
+
+GEOMETRY = args.SensorGeometry
+TH = args.Threshold
+if TH > 1. or TH < 0:
+    print("Incorrect value for argument 'Threshold'. Try again.")
+    exit()
+grid = args.Grid
+if grid > 2 or grid < 1:
+    print("Incorrect value for argument 'Grid'. Try again.")
+    exit()
+PS = args.PS
+if PS == 0:
+    PS = False
+elif PS == 1:
+    PS = True
+else:
+    print("Incorrect value for argument 'PS'. Try again.")
+    exit()
+
 campaign = 'dummy_images'
 dut = '8inch_198ch_N4790_12'
 
 output_dir = create_dir(os.path.abspath(os.path.join("outputs", campaign, dut)))
 jpeg_output_dir = create_dir(os.path.abspath(os.path.join(output_dir, 'jpegs')))
 dummy_images = glob.glob(os.path.join(r'backup/dummy_images/8inch_198ch_N4790_12', 'initial*.npy'))
+
+print(" ----- 1-7 ----- ")
+print("THIS IS A TEST PROGRAM. DOES NOT INCLUDE CAMERA INPUT: USES DUMMY INPUT DATA. ONLY %s SCAN INDICES." % len(dummy_images))
+
+if not PS:
+    print("Running without pre-selection!")
+elif PS:
+    print("Running with pre-selection!")
+
+print(" ----- 8: Loading ----- ")
+print("Loading the scan mapping")
+try:
+    sm = ScanMapping(GEOMETRY)
+except:
+    print("Scan map name does not exist.")
+    exit()
+sm.loadGeoFile()
+if "custom" in GEOMETRY:
+    print("You have chosen a custom mapping named %s." % GEOMETRY)
+    print("Detail level for custom maps is 0.")
+    DL = 0
+    change = False
+elif GEOMETRY == "HPK_198ch_8inch":
+    DL = 2
+    print("Default detail level for the mapping of LD sensor is 2 (529 images).")
+    change = True
+elif GEOMETRY == "HPK_432ch_8inch":
+    DL = 1
+    print("Default detail level for the mapping of HD sensor is 1 (864 images).")
+    change = True
+if change:
+    while True:
+        answer = input("Will you change detail level for scan (no/[0,1,2])?\n")
+        if answer.casefold() == 'no'.casefold():
+            break
+        elif (answer == '0') or (answer == '1') or (answer == '2'):
+            DL = int(answer)
+            print("Detail level is set to ", answer)
+            break
+        else:
+            print("Try again")
+            continue
+sm.createPattern(detail_level=DL)
+
+sm.initialise_scan()
+N_points = sm.N_scan_points
+print(N_points, ' images in scan map.')
+N_images = len(dummy_images)
+print(N_images, ' images will be taken.')
+sm.visualisePattern()
+print()
+
 f = open(os.path.join(output_dir, "annotation_indices.txt"), 'a+')
 
-N_images = len(dummy_images)
-
-print(" ----- 1-5 ----- ")
-print("THIS IS A TEST PROGRAM. DOES NOT INCLUDE CAMERA INPUT. USES DUMMY INPUT DATA. ONLY %s SCAN INDICES." % N_images)
-print(N_images, ' images will be taken.')
-
-TH = 0.2
-DL = 0
-sm = ScanMapping(GEOMETRY)
-sm.loadGeoFile()
-sm.createPattern(detail_level=DL)
-sm.initialise_scan()
-sm.openFigure()
-fig = sm.visualisePattern()
-print()
-
-print()
-print(" ----- 5: Test photo ----- ")
-msg = "Please place the central pad underneath the microscope. \n"
-msg += "And please hit 'ENTER' afterwards. \n"
-input(msg)
-
-i = 0
-while True:
-    if i == 0:
-        print('Taking photos: adjust sensor placement. Press enter to quit. \n', flush=True)
-        ans = input()
-        break
-    time.sleep(0.2)
-    i = 1
-print()
-
-print(" ----- 6: Set exposure ----- ")
-
-while True:
-    current_exposure_time = 0
-    msg = "By what percentage to scale [-100., 100]? \n"
-    msg += "Type '0' to skip. \n"
-    try:
-        scaling = float(input(msg))
-    except:
-        print("Input must be a number.")
-        continue
-    if scaling == 0:
-        break
-    new_exposure_time = current_exposure_time * max(0, 1. + scaling / 100.)
-print()
-
-# initial scan images are saved to their own folder - in the future this will not be necessary
 ImageSave = ImageSaveEvent()
 ImageSave.setBasePath(os.path.join(jpeg_output_dir, "initial_scan.jpeg"))
 ImageSave.setJPEGQuality(10)
 
-# npy arrays are saved in the folder where PS analysis can read them from.
-# 90 % of npy arrays for images deemed clean are removed.
 ImageSave2 = ImageSaveEvent()
 ImageSave2.setBasePath(os.path.join(output_dir, "initial_scan.npy"))
 
 print(" ----- 9: Scan start ----- ")
-input("Please hit 'ENTER' to initiate the wafer scan.")
+print("Make sure that the light cone/upper light is OFF!")
+print("And that the lower light is at MAXIMUM.")
+input("Please press ENTER to initiate the wafer scan.")
+
 first_scan = True
 anomalous_scan_steps_npy = []
-for i in range(1, 20+1):
+
+for i in range(1, N_images+1):
     _ = sm.next_xy()
     if _ == -1:
         break
@@ -122,7 +157,7 @@ for i in range(1, 20+1):
             print("Starting pre-selection. \n")
             print("Ignore tensorflow WARNING messages: \n")
             prints_file = open(os.path.join(output_dir, "run_PS_prints.txt"), 'a')
-            cmd = "python ./run_PS.py --N_images %s --SensorGeometry %s --Threshold %s --CampaignName %s --DUTName %s --Verbose True --Grid %s" % (N_images, GEOMETRY, TH, campaign, dut, '2')
+            cmd = "python ./run_PS.py --N_images %s --SensorGeometry %s --Threshold %s --CampaignName %s --DUTName %s --Verbose True --Grid %s" % (N_images, GEOMETRY, TH, campaign, dut, grid)
             AI_process = subprocess.Popen(cmd, stdout=prints_file, stderr=prints_file, shell=True)
             first_scan = False
         sm.setNAnnotations(scan_step, 0)
@@ -141,22 +176,22 @@ print()
 print("\nScan finished.")
 print()
 
-print("Waiting for PS to finish... \n")
+print("Waiting for pre-selection to finish... \n")
 while True:
     myProcessIsRunning = AI_process.poll() is None
     if not myProcessIsRunning:
         break
     else:
         continue
-print("...PS has finished. \n")
+print("...pre-selection has finished. \n")
 
-sm.update_title("Scan map with pre-selected anomalies")
 AI_scan_steps = read_AI_indices(output_dir)
 for i in AI_scan_steps:
     print(i)
     sm.setNAnnotations(i, 1)
 
-print("PS annotated %s images out of %s. \n" % (len(AI_scan_steps), N_images))
+percent = np.round((len(AI_scan_steps) / N_images) * 100, 2)
+print("%s images out of %s (%s %%) were pre-selected to be anomalous. \n" % (len(AI_scan_steps), percent, N_images))
 
 print(" ----- 10: Validation ----- ")
 validation = ImageValidateEvent()
@@ -169,29 +204,24 @@ validation.anomalous_scan_steps_npy = AI_scan_steps
 
 overwrite = True
 if len(AI_scan_steps) == 0:
-    print("Skipping validation: no annotations!")
+    print("No pre-selected images!")
 elif len(AI_scan_steps) > 0:
     while True:
-        validate = input("Will you validate the images annotated by the PS now? Validation step not mandatory during pre-series testing. (yes/no) \n")
-        if validate.casefold() == "yes".casefold():
-            validation.validation_action(type='all', overwrite=False)
-            validation.createValidationSummary()
-            break
-        elif validate.casefold() == "no".casefold():
+        validate = input("Press ENTER to validate the pre-selected images that contain annotations and a fraction of normal images. Type in 'no' to skip.\n")
+        if validate.casefold() == "no".casefold():
             print("Remember to run validation_tool.py later. \n")
             break
         else:
-            print("Try again \n")
-            continue
+            validation.validation_action(type='all', overwrite=False)
+            validation.createValidationSummary()
+            break
 plt.close(2)
 for i in AI_scan_steps:
     if i not in validation.anomalous_scan_steps_npy:
-        sm.update_title("Scan map with validated anomalies")
         sm.setNAnnotations(i, 0)
 plt.close(2)
 for i in validation.anomalous_scan_steps_npy:
     if i not in AI_scan_steps:
-        sm.update_title("Scan map with validated anomalies")
         sm.update_legend()
         sm.setNAnnotations(i, 2)
 
@@ -203,49 +233,30 @@ ImageSave3 = ImageSaveEvent()
 ImageSave3.setBasePath(os.path.join(jpeg_output_dir, "rescan.jpeg"))
 
 print("Revisiting suspicious areas \n")
-sm.update_title("Scan map during visual inspection")
 
 if len(anomalous_scan_steps) == 0 or anomalous_scan_steps is None:
-    print("  PS has no suggestions. \n")
+    print(" No pre-selected suggestions.  \n")
 elif len(anomalous_scan_steps) > 0 and anomalous_scan_steps is not None:
-    print("PS suggests you visit these step indexes: %s \n" % anomalous_scan_steps)
-for i in anomalous_scan_steps:
-    answer = input("Press enter to move to the next anomalous step: %s. Type 'END' to stop. \n" % i)
-    if answer.casefold() == "END".casefold():
-        break
-    else:
-        try:
-            step = int(i)
-        except:
-            print("Input must be an integer.")
-            continue
-        _exists, current_pad_nr, _x, _y = sm.scan_step_coordinates(step)
-        if not _exists:
-            continue
-        while True:
-            answer = input("Take video at scan index %s to show cleaning? (yes/no) \n" % step)
-            if answer.casefold() == 'END'.casefold():
-                break
-            if answer.casefold() == "yes".casefold():
-                i = 0
-                while True:
-                    if i == 0:
-                        ans = input('Taking photos. Press enter to quit cleaning: a rescan will be taken and saved of the cleaned area. \n', flush=True)
-                        break
-                    time.sleep(0.1)
-                    i = 1
-                plt.close(2)
-                ImageSave2.setPathPostfix("pad%i_step%i" % (current_pad_nr, step))
-                plt.close(2)
-                break
-            elif answer == "no":
-                break
-            else:
-                continue
-        sm.setNAnnotations(step, 0)
+    print(" Pre-selection suggests you visit one of these step indexes: %s \n" % anomalous_scan_steps)
 
+sm.visualisePattern()
+print("YOU ARE RUNNING A TEST PROGRAM: VISUAL INSPECTION SKIPPED")
 print()
 print(" ----- 12: End. ----- ")
 print("End of the scanning program.")
-print("Please manually clean the guard ring area now using the microscope and joystick.")
 
+while True:
+    if GEOMETRY.find("custom") != -1:
+        answer = input(
+            "With this custom map, it is possible to now go through images of the guard ring on screen. Type in 'no' to skip, otherwise, press ENTER. \n")
+        if answer != "no":
+            print("YOU ARE RUNNING A TEST PROGRAM: GUARD RING INSPECTION SKIPPED")
+            break
+        elif answer == "no":
+            print("Please manually clean the guard ring area now using the microscope and joystick.")
+            break
+        else:
+            continue
+    else:
+        print("Please manually clean the guard ring area now using the microscope and joystick.")
+        break
