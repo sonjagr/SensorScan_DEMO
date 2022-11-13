@@ -2,9 +2,6 @@
 DEMONSTRATION REPOSITORY
 ###                  ###
 
-
-This is an updated version of the software in https://gitlab.cern.ch/CLICdp/HGCAL/hexascan by Thorben Quast.
-
 Person responsible: Sonja Grönroos sonja.gronroos@cern.ch
 
 The repository contains the software that can be used to scan and evaluate an 8inch HGCAL silicon sensor and partials.
